@@ -1,6 +1,5 @@
 
-#ifndef HIREDIS_POLL_H
-#define HIREDIS_POLL_H
+#pragma once
 
 #include "hiredis/alloc.h"
 #include "hiredis/async.h"
@@ -174,4 +173,3 @@ static int redisPollAttach(redisAsyncContext *ac) {
 
   return REDIS_OK;
 }
-#endif /* HIREDIS_POLL_H */

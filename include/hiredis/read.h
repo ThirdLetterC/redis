@@ -29,8 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HIREDIS_READ_H
-#define __HIREDIS_READ_H
+#pragma once
 
 #include <stddef.h> /* for size_t */
 
@@ -117,5 +116,3 @@ int redisReaderGetReply(redisReader *r, void **reply);
 #define redisReaderSetPrivdata(_r, _p) (int)(((redisReader *)(_r))->privdata = (_p))
 #define redisReaderGetObject(_r) (((redisReader *)(_r))->reply)
 #define redisReaderGetError(_r) (((redisReader *)(_r))->errstr)
-
-#endif

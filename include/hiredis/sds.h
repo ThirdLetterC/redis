@@ -30,8 +30,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __SDS_H
-#define __SDS_H
+#pragma once
 
 #include <stddef.h>
 #include <stdarg.h>
@@ -265,6 +264,4 @@ void sds_free(void *ptr);
 
 #ifdef REDIS_TEST
 int sdsTest(int argc, char *argv[]);
-#endif
-
 #endif

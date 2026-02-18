@@ -29,8 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HIREDIS_ASYNC_PRIVATE_H
-#define __HIREDIS_ASYNC_PRIVATE_H
+#pragma once
 
 #include "hiredis/async.h"
 
@@ -80,5 +79,3 @@ static inline void refreshTimeout(redisAsyncContext *ctx) {
 
 void __redisAsyncDisconnect(redisAsyncContext *ac);
 void redisProcessCallbacks(redisAsyncContext *ac);
-
-#endif /* __HIREDIS_ASYNC_PRIVATE_H */

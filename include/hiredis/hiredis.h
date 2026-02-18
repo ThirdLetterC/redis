@@ -31,8 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HIREDIS_H
-#define __HIREDIS_H
+#pragma once
 
 #include <stdarg.h>    /* for va_list */
 #include <stdint.h>    /* uintXX_t, etc */
@@ -346,5 +345,3 @@ int redisAppendCommandArgv(redisContext *c, int argc, const char **argv, const s
 [[nodiscard]] void *redisCommand(redisContext *c, const char *format, ...);
 [[nodiscard]] void *redisCommandArgv(redisContext *c, int argc, const char **argv,
                                      const size_t *argvlen);
-
-#endif
