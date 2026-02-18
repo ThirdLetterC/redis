@@ -32,8 +32,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __NET_H
-#define __NET_H
+#pragma once
 
 #include "hiredis/hiredis.h"
 
@@ -53,5 +52,3 @@ int redisCheckConnectDone(redisContext *c, int *completed);
 
 int redisSetTcpNoDelay(redisContext *c);
 int redisContextSetTcpUserTimeout(redisContext *c, unsigned int timeout);
-
-#endif

@@ -28,8 +28,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef HIREDIS_ALLOC_H
-#define HIREDIS_ALLOC_H
+#pragma once
 
 #include <stddef.h> /* for size_t */
 #include <stdint.h>
@@ -72,5 +71,3 @@ extern hiredisAllocFuncs hiredisAllocFns;
 static inline void hi_free(void *ptr) {
   hiredisAllocFns.freeFn(ptr);
 }
-
-#endif /* HIREDIS_ALLOC_H */

@@ -1,5 +1,4 @@
-#ifndef __HIREDIS_LIBUV_H__
-#define __HIREDIS_LIBUV_H__
+#pragma once
 
 #include <uv.h>
 
@@ -164,4 +163,3 @@ static void redisLibuvCleanup(void *privdata) {
 
   return REDIS_OK;
 }
-#endif

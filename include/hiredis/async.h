@@ -29,8 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HIREDIS_ASYNC_H
-#define __HIREDIS_ASYNC_H
+#pragma once
 
 #include "hiredis/hiredis.h"
 
@@ -146,5 +145,3 @@ int redisAsyncCommandArgv(redisAsyncContext *ac, redisCallbackFn *fn, void *priv
                           const char **argv, const size_t *argvlen);
 int redisAsyncFormattedCommand(redisAsyncContext *ac, redisCallbackFn *fn, void *privdata,
                                const char *cmd, size_t len);
-
-#endif

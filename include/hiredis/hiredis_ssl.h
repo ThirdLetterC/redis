@@ -29,8 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __HIREDIS_SSL_H
-#define __HIREDIS_SSL_H
+#pragma once
 
 #include "hiredis/hiredis.h"
 
@@ -161,5 +160,3 @@ int redisInitiateSSLWithContext(redisContext *c, redisSSLContext *redis_ssl_ctx)
  */
 
 int redisInitiateSSL(redisContext *c, SSL *ssl);
-
-#endif /* __HIREDIS_SSL_H */

@@ -33,8 +33,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __DICT_H
-#define __DICT_H
+#pragma once
 
 [[maybe_unused]] static constexpr int DICT_OK = 0;
 [[maybe_unused]] static constexpr int DICT_ERR = 1;
@@ -121,5 +120,3 @@ typedef struct dictIterator {
 [[maybe_unused]] static dictEntry *dictFind(dict *ht, const void *key);
 [[maybe_unused]] static void dictInitIterator(dictIterator *iter, dict *ht);
 [[maybe_unused]] static dictEntry *dictNext(dictIterator *iter);
-
-#endif /* __DICT_H */
