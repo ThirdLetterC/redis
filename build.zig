@@ -82,6 +82,20 @@ pub fn build(b: *std.Build) void {
     }
     const fmacros_cflags = fmacros_cflags_list.items;
 
+    var test_base_cflags_list = std.ArrayList([]const u8).empty;
+    test_base_cflags_list.appendSlice(b.allocator, if (os_tag == .windows) &common_cflags else &common_cflags_pic) catch @panic("OOM");
+    const test_base_cflags = test_base_cflags_list.items;
+
+    var test_fmacros_cflags_list = std.ArrayList([]const u8).empty;
+    test_fmacros_cflags_list.appendSlice(b.allocator, test_base_cflags) catch @panic("OOM");
+    if (os_tag != .aix) {
+        test_fmacros_cflags_list.appendSlice(b.allocator, &posix_feature_cflags) catch @panic("OOM");
+    }
+    if (os_tag.isDarwin()) {
+        test_fmacros_cflags_list.appendSlice(b.allocator, &darwin_feature_cflags) catch @panic("OOM");
+    }
+    const test_fmacros_cflags = test_fmacros_cflags_list.items;
+
     var static_lib: ?*std.Build.Step.Compile = null;
     var shared_lib: ?*std.Build.Step.Compile = null;
 
@@ -118,8 +132,36 @@ pub fn build(b: *std.Build) void {
     clean_step.dependOn(&remove_cache.step);
     clean_step.dependOn(&remove_out.step);
 
-    const examples_step = b.step("examples", "Build example programs");
     const link_lib = static_lib orelse shared_lib.?;
+    const tests_step = b.step("test", "Build and run unit tests");
+    {
+        const test_lib = addHiredisLibrary(
+            b,
+            "hiredis-test",
+            target,
+            optimize,
+            false,
+            false,
+            test_base_cflags,
+            test_fmacros_cflags,
+        );
+        const exe = addExample(
+            b,
+            "hiredis-unit-tests",
+            "testing/test.c",
+            target,
+            optimize,
+            test_lib,
+            test_base_cflags,
+            false,
+            false,
+            false,
+        );
+        const run_tests = b.addRunArtifact(exe);
+        tests_step.dependOn(&run_tests.step);
+    }
+
+    const examples_step = b.step("examples", "Build example programs");
 
     {
         const exe = addExample(b, "example", "examples/example.c", target, optimize, link_lib, base_cflags, false, false, false);
