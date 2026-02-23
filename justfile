@@ -11,6 +11,10 @@ default:
 build *args:
   {{zig}} build {{args}}
 
+# Build libraries with sanitizer hardening enabled.
+build-sanitize *args:
+  {{zig}} build -Dsanitize=true {{args}}
+
 # Build example programs.
 examples *args:
   {{zig}} build examples {{args}}

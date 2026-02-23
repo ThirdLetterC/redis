@@ -45,6 +45,11 @@ const darwin_feature_cflags = [_][]const u8{
     "-D_DARWIN_C_SOURCE",
 };
 
+const sanitizer_cflags = [_][]const u8{
+    "-fsanitize=address,undefined,leak",
+    "-fno-omit-frame-pointer",
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -56,7 +61,16 @@ pub fn build(b: *std.Build) void {
     const build_static = b.option(bool, "static", "Build static library") orelse true;
 
     const os_tag = target.result.os.tag;
-    const base_cflags = if (os_tag == .windows) &common_cflags else &common_cflags_pic;
+    const enable_sanitizers =
+        b.option(bool, "sanitize", "Enable ASan/UBSan/LSan hardening") orelse (optimize == .Debug);
+    const use_sanitizers = enable_sanitizers and os_tag != .windows;
+
+    var base_cflags_list = std.ArrayList([]const u8).empty;
+    base_cflags_list.appendSlice(b.allocator, if (os_tag == .windows) &common_cflags else &common_cflags_pic) catch @panic("OOM");
+    if (use_sanitizers) {
+        base_cflags_list.appendSlice(b.allocator, &sanitizer_cflags) catch @panic("OOM");
+    }
+    const base_cflags = base_cflags_list.items;
 
     var fmacros_cflags_list = std.ArrayList([]const u8).empty;
     fmacros_cflags_list.appendSlice(b.allocator, base_cflags) catch @panic("OOM");

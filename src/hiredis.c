@@ -301,8 +301,25 @@ static uint32_t countDigits(uint64_t v) {
 }
 
 /* Helper that calculates the bulk length given a certain string length. */
-static size_t bulklen(size_t len) {
-  return 1 + countDigits(len) + 2 + len + 2;
+static int bulklen(size_t len, size_t *result) {
+  if (result == nullptr)
+    return REDIS_ERR;
+
+  if (len > SIZE_MAX - 2)
+    return REDIS_ERR;
+
+  auto payload = len + 2; /* payload + trailing \r\n */
+  auto digits = (size_t)countDigits(len);
+
+  if (digits > SIZE_MAX - 3)
+    return REDIS_ERR;
+  auto prefix = (size_t)1 + digits + 2; /* '$' + digits + \r\n */
+
+  if (prefix > SIZE_MAX - payload)
+    return REDIS_ERR;
+
+  *result = prefix + payload;
+  return REDIS_OK;
 }
 
 int redisvFormatCommand(char **target, const char *format, va_list ap) {
@@ -335,7 +352,9 @@ int redisvFormatCommand(char **target, const char *format, va_list ap) {
             goto memory_err;
           curargv = newargv;
           curargv[argc++] = curarg;
-          auto bulk = bulklen(sdslen(curarg));
+          size_t bulk = 0;
+          if (bulklen(sdslen(curarg), &bulk) != REDIS_OK)
+            goto memory_err;
           if (totlen > SIZE_MAX - bulk)
             goto memory_err;
           totlen += bulk;
@@ -502,7 +521,9 @@ int redisvFormatCommand(char **target, const char *format, va_list ap) {
       goto memory_err;
     curargv = newargv;
     curargv[argc++] = curarg;
-    auto bulk = bulklen(sdslen(curarg));
+    size_t bulk = 0;
+    if (bulklen(sdslen(curarg), &bulk) != REDIS_OK)
+      goto memory_err;
     if (totlen > SIZE_MAX - bulk)
       goto memory_err;
     totlen += bulk;
@@ -610,19 +631,26 @@ int redisFormatCommand(char **target, const char *format, ...) {
 long long redisFormatSdsCommandArgv(sds *target, int argc, const char **argv,
                                     const size_t *argvlen) {
   sds cmd, aux;
-  unsigned long long totlen, len;
+  size_t totlen, len;
   int j;
 
   /* Abort on a nullptr target */
   if (target == nullptr)
     return -1;
+  if (argc < 0)
+    return -1;
 
   /* Calculate our total size */
-  totlen = 1 + countDigits(argc) + 2;
+  totlen = (size_t)1 + countDigits((uint64_t)argc) + 2;
   for (j = 0; j < argc; j++) {
     len = argvlen ? argvlen[j] : strlen(argv[j]);
-    totlen += bulklen(len);
+    size_t bulk = 0;
+    if (bulklen(len, &bulk) != REDIS_OK || totlen > SIZE_MAX - bulk)
+      return -1;
+    totlen += bulk;
   }
+  if (totlen > (size_t)LLONG_MAX)
+    return -1;
 
   /* Use an SDS string for command construction */
   cmd = sdsempty();
@@ -672,13 +700,20 @@ long long redisFormatCommandArgv(char **target, int argc, const char **argv,
   /* Abort on a nullptr target */
   if (target == nullptr)
     return -1;
+  if (argc < 0)
+    return -1;
 
   /* Calculate number of bytes needed for the command */
-  totlen = 1 + countDigits(argc) + 2;
+  totlen = (size_t)1 + countDigits((uint64_t)argc) + 2;
   for (j = 0; j < argc; j++) {
     len = argvlen ? argvlen[j] : strlen(argv[j]);
-    totlen += bulklen(len);
+    size_t bulk = 0;
+    if (bulklen(len, &bulk) != REDIS_OK || totlen > SIZE_MAX - bulk)
+      return -1;
+    totlen += bulk;
   }
+  if (totlen > (size_t)LLONG_MAX)
+    return -1;
 
   /* Build the command at protocol level */
   cmd = hi_malloc(totlen + 1);

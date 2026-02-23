@@ -458,15 +458,20 @@ static int processBulkItem(redisReader *r) {
 
       /* Only continue when the buffer contains the entire bulk item. */
       if (total_len <= (r->len - r->pos)) {
+        char *payload = s + 2;
+        if (payload[payload_len] != '\r' || payload[payload_len + 1] != '\n') {
+          __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Bad bulk string format");
+          return REDIS_ERR;
+        }
         if ((cur->type == REDIS_REPLY_VERB && payload_len < 4) ||
-            (cur->type == REDIS_REPLY_VERB && s[5] != ':')) {
+            (cur->type == REDIS_REPLY_VERB && payload[3] != ':')) {
           __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
                                 "Verbatim string 4 bytes of content type are "
                                 "missing or incorrectly encoded.");
           return REDIS_ERR;
         }
         if (r->fn && r->fn->createString)
-          obj = r->fn->createString(cur, s + 2, payload_len);
+          obj = r->fn->createString(cur, payload, payload_len);
         else
           obj = (void *)(uintptr_t)cur->type;
         bytelen = total_len;

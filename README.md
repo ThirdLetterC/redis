@@ -9,7 +9,8 @@ High-performance C23 Redis client library with synchronous and asynchronous APIs
 
 Or with `just`:
 1. `just build`
-2. `just clean`
+2. `just build-sanitize`
+3. `just clean`
 
 **Build Options**
 
@@ -18,6 +19,7 @@ Or with `just`:
 3. `-Dlibuv=true` builds the libuv example (requires system `libuv`).
 4. `-Dshared=false` disables the shared library.
 5. `-Dstatic=false` disables the static library.
+6. `-Dsanitize=true` enables `-fsanitize=address,undefined,leak` (enabled by default for debug builds on non-Windows targets).
 
 **Examples**
 
