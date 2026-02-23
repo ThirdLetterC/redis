@@ -95,7 +95,7 @@ static void on_handle_close(uv_handle_t *handle) {
 
 // libuv removed `status` parameter since v0.11.23
 // see: https://github.com/libuv/libuv/blob/v0.11.23/include/uv.h
-#if (UV_VERSION_MAJOR == 0 && UV_VERSION_MINOR < 11) ||                                            \
+#if (UV_VERSION_MAJOR == 0 && UV_VERSION_MINOR < 11) ||                        \
     (UV_VERSION_MAJOR == 0 && UV_VERSION_MINOR == 11 && UV_VERSION_PATCH < 23)
 static void redisLibuvTimeout(uv_timer_t *timer, [[maybe_unused]] int status) {
 #else
@@ -134,7 +134,8 @@ static void redisLibuvCleanup(void *privdata) {
   uv_close((uv_handle_t *)&p->handle, on_handle_close);
 }
 
-[[maybe_unused]] static int redisLibuvAttach(redisAsyncContext *ac, uv_loop_t *loop) {
+[[maybe_unused]] static int redisLibuvAttach(redisAsyncContext *ac,
+                                             uv_loop_t *loop) {
   auto c = &(ac->c);
 
   if (ac->ev.data != nullptr) {

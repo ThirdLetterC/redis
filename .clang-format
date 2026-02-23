@@ -1,10 +1,7 @@
-BasedOnStyle: LLVM
-IndentWidth: 2
-ContinuationIndentWidth: 4
-UseTab: Never
-BreakBeforeBraces: Attach
-PointerAlignment: Right
-AllowShortIfStatementsOnASingleLine: Never
-AllowShortFunctionsOnASingleLine: None
-SortIncludes: false
-ColumnLimit: 100
+---
+Language: Cpp
+Standard: Latest
+SpaceBeforeParens: ControlStatements
+# Recognizes C23 attributes like [[deprecated]] or [[maybe_unused]]
+AttributeMacros: ['[[.*]]'] 
+---

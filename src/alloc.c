@@ -44,8 +44,16 @@ hiredisAllocFuncs hiredisAllocFns = {
 /* Override hiredis' allocators with ones supplied by the user */
 hiredisAllocFuncs hiredisSetAllocators(hiredisAllocFuncs *override) {
   hiredisAllocFuncs orig = hiredisAllocFns;
+  if (override == nullptr)
+    return orig;
 
-  hiredisAllocFns = *override;
+  hiredisAllocFns = (hiredisAllocFuncs){
+      .mallocFn = override->mallocFn ? override->mallocFn : orig.mallocFn,
+      .callocFn = override->callocFn ? override->callocFn : orig.callocFn,
+      .reallocFn = override->reallocFn ? override->reallocFn : orig.reallocFn,
+      .strdupFn = override->strdupFn ? override->strdupFn : orig.strdupFn,
+      .freeFn = override->freeFn ? override->freeFn : orig.freeFn,
+  };
 
   return orig;
 }

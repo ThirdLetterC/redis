@@ -71,6 +71,7 @@ static void __redisReaderSetError(redisReader *r, int type, const char *str) {
 
 static size_t chrtos(char *buf, size_t size, char byte) {
   size_t len = 0;
+  auto unsigned_byte = (unsigned char)byte;
 
   switch (byte) {
   case '\\':
@@ -93,10 +94,10 @@ static size_t chrtos(char *buf, size_t size, char byte) {
     len = snprintf(buf, size, "\"\\b\"");
     break;
   default:
-    if (isprint(byte))
+    if (isprint((int)unsigned_byte))
       len = snprintf(buf, size, "\"%c\"", byte);
     else
-      len = snprintf(buf, size, "\"\\x%02x\"", (unsigned char)byte);
+      len = snprintf(buf, size, "\"\\x%02x\"", (unsigned int)unsigned_byte);
     break;
   }
 
@@ -110,7 +111,8 @@ static void __redisReaderSetErrorProtocolByte(redisReader *r, char byte) {
   char sbuf[sbuf_size];
 
   chrtos(cbuf, sizeof(cbuf), byte);
-  snprintf(sbuf, sizeof(sbuf), "Protocol error, got %s as reply type byte", cbuf);
+  snprintf(sbuf, sizeof(sbuf), "Protocol error, got %s as reply type byte",
+           cbuf);
   __redisReaderSetError(r, REDIS_ERR_PROTOCOL, sbuf);
 }
 
@@ -246,9 +248,9 @@ static int longLongToSize(long long value, size_t *target) {
   return REDIS_OK;
 }
 
-static char *readLine(redisReader *r, int *_len) {
+static char *readLine(redisReader *r, size_t *_len) {
   char *p, *s;
-  int len;
+  size_t len;
 
   p = r->buf + r->pos;
   s = seekNewline(p, (r->len - r->pos));
@@ -293,7 +295,7 @@ static int processLineItem(redisReader *r) {
   redisReadTask *cur = r->task[r->ridx];
   void *obj;
   char *p;
-  int len;
+  size_t len;
 
   if ((p = readLine(r, &len)) != nullptr) {
     if (cur->type == REDIS_REPLY_INTEGER) {
@@ -316,7 +318,8 @@ static int processLineItem(redisReader *r) {
       double d;
 
       if ((size_t)len >= sizeof(buf)) {
-        __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Double value is too large");
+        __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                              "Double value is too large");
         return REDIS_ERR;
       }
 
@@ -373,7 +376,7 @@ static int processLineItem(redisReader *r) {
     } else if (cur->type == REDIS_REPLY_BIGNUM) {
       /* Ensure all characters are decimal digits (with possible leading
        * minus sign). */
-      for (int i = 0; i < len; i++) {
+      for (size_t i = 0; i < len; i++) {
         /* XXX Consider: Allow leading '+'? Error on leading '0's? */
         if (i == 0 && p[0] == '-')
           continue;
@@ -388,9 +391,10 @@ static int processLineItem(redisReader *r) {
         obj = (void *)REDIS_REPLY_BIGNUM;
     } else {
       /* Type will be error or status. */
-      for (int i = 0; i < len; i++) {
+      for (size_t i = 0; i < len; i++) {
         if (p[i] == '\r' || p[i] == '\n') {
-          __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Bad simple string value");
+          __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                                "Bad simple string value");
           return REDIS_ERR;
         }
       }
@@ -435,7 +439,8 @@ static int processBulkItem(redisReader *r) {
     }
 
     if (len < -1) {
-      __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Bulk string length out of range");
+      __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                            "Bulk string length out of range");
       return REDIS_ERR;
     }
 
@@ -448,19 +453,23 @@ static int processBulkItem(redisReader *r) {
       success = true;
     } else {
       size_t payload_len;
-      if (longLongToSize(len, &payload_len) == REDIS_ERR || payload_len > SIZE_MAX - 2 ||
+      if (longLongToSize(len, &payload_len) == REDIS_ERR ||
+          payload_len > SIZE_MAX - 2 ||
           bytelen > SIZE_MAX - (payload_len + 2)) {
-        __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Bulk string length out of range");
+        __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                              "Bulk string length out of range");
         return REDIS_ERR;
       }
 
-      size_t total_len = bytelen + payload_len + 2; /* include payload + trailing \r\n */
+      size_t total_len =
+          bytelen + payload_len + 2; /* include payload + trailing \r\n */
 
       /* Only continue when the buffer contains the entire bulk item. */
       if (total_len <= (r->len - r->pos)) {
         char *payload = s + 2;
         if (payload[payload_len] != '\r' || payload[payload_len + 1] != '\n') {
-          __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Bad bulk string format");
+          __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                                "Bad bulk string format");
           return REDIS_ERR;
         }
         if ((cur->type == REDIS_REPLY_VERB && payload_len < 4) ||
@@ -504,7 +513,15 @@ static int redisReaderGrow(redisReader *r) {
   int newlen;
 
   /* Grow our stack size */
+  if (r->tasks > INT_MAX - REDIS_READER_STACK_SIZE) {
+    __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                          "Nested multi-bulk depth out of range");
+    return REDIS_ERR;
+  }
   newlen = r->tasks + REDIS_READER_STACK_SIZE;
+  if ((size_t)newlen > SIZE_MAX / sizeof(*r->task))
+    goto oom;
+
   aux = hi_realloc(r->task, sizeof(*r->task) * newlen);
   if (aux == nullptr)
     goto oom;
@@ -531,7 +548,7 @@ static int processAggregateItem(redisReader *r) {
   char *p;
   long long elements, task_elements;
   bool root = false;
-  int len;
+  size_t len;
 
   if (r->ridx == r->tasks - 1) {
     if (redisReaderGrow(r) == REDIS_ERR)
@@ -547,7 +564,8 @@ static int processAggregateItem(redisReader *r) {
     root = (r->ridx == 0);
 
     if (elements < -1 || (r->maxelements > 0 && elements > r->maxelements)) {
-      __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Multi-bulk length out of range");
+      __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                            "Multi-bulk length out of range");
       return REDIS_ERR;
     }
 
@@ -571,13 +589,15 @@ static int processAggregateItem(redisReader *r) {
         if (task_elements <= LLONG_MAX / 2) {
           task_elements *= 2;
         } else {
-          __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Multi-bulk length out of range");
+          __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                                "Multi-bulk length out of range");
           return REDIS_ERR;
         }
       }
 
       if (longLongToSize(task_elements, &element_count) == REDIS_ERR) {
-        __redisReaderSetError(r, REDIS_ERR_PROTOCOL, "Multi-bulk length out of range");
+        __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                              "Multi-bulk length out of range");
         return REDIS_ERR;
       }
 
@@ -593,6 +613,11 @@ static int processAggregateItem(redisReader *r) {
 
       /* Modify task stack when there are more than 0 elements. */
       if (task_elements > 0) {
+        if (r->ridx == INT_MAX) {
+          __redisReaderSetError(r, REDIS_ERR_PROTOCOL,
+                                "Nested multi-bulk depth out of range");
+          return REDIS_ERR;
+        }
         cur->elements = task_elements;
         cur->obj = obj;
         r->ridx++;

@@ -31,12 +31,3 @@ format:
   else \
     {{clang_format}} -i $files; \
   fi
-
-# Check formatting without modifying files.
-format-check:
-  @files="$(rg --files -g '*.c' -g '*.h' src examples adapters)"; \
-  if [ -z "$files" ]; then \
-    echo "No source files found."; \
-  else \
-    {{clang_format}} --dry-run --Werror $files; \
-  fi

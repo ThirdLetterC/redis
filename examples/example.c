@@ -5,7 +5,8 @@
 
 #include "hiredis/hiredis.h"
 
-[[nodiscard]] static redisReply *runCommand(redisContext *c, const char *format, ...) {
+[[nodiscard]] static redisReply *runCommand(redisContext *c, const char *format,
+                                            ...) {
   va_list ap;
   va_start(ap, format);
   auto reply = (redisReply *)redisvCommand(c, format, ap);
@@ -45,7 +46,8 @@ static bool example_argv_command(redisContext *c, size_t n) {
 
   /* Add the entries we wish to push to the list. */
   for (size_t i = argv_fixed; i < argv_count; i++) {
-    auto written = snprintf(tmp, sizeof(tmp), "argv-element-%zu", i - argv_fixed);
+    auto written =
+        snprintf(tmp, sizeof(tmp), "argv-element-%zu", i - argv_fixed);
     if (written < 0 || (size_t)written >= sizeof(tmp)) {
       fprintf(stderr, "Error: failed to build argv entry\n");
       goto cleanup;
@@ -59,7 +61,8 @@ static bool example_argv_command(redisContext *c, size_t n) {
     }
   }
 
-  reply = redisCommandArgv(c, argv_count, (const char **)cmd_argv, (const size_t *)argvlen);
+  reply = redisCommandArgv(c, argv_count, (const char **)cmd_argv,
+                           (const size_t *)argvlen);
   if (reply == nullptr || c->err) {
     fprintf(stderr, "Error: couldn't execute redisCommandArgv: %s\n",
             c->err ? c->errstr : "unknown");
@@ -104,7 +107,8 @@ int main(int argc, char **argv) {
   constexpr int default_port = 6'379;
   auto port = (argc > 2) ? atoi(argv[2]) : default_port;
 
-  constexpr struct timeval timeout = {.tv_sec = 1, .tv_usec = 500'000}; // 1.5 seconds
+  constexpr struct timeval timeout = {.tv_sec = 1,
+                                      .tv_usec = 500'000}; // 1.5 seconds
   if (isunix) {
     c = redisConnectUnixWithTimeout(hostname, timeout);
   } else {

@@ -54,7 +54,7 @@ extern hiredisAllocFuncs hiredisAllocFns;
 
 [[nodiscard]] static inline void *hi_calloc(size_t nmemb, size_t size) {
   /* Overflow check as the user can specify any arbitrary allocator */
-  if (SIZE_MAX / size < nmemb)
+  if (size != 0 && nmemb > (SIZE_MAX / size))
     return nullptr;
 
   return hiredisAllocFns.callocFn(nmemb, size);

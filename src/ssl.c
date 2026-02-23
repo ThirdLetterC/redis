@@ -30,23 +30,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <wolfssl/options.h>
 #include <wolfssl/openssl/err.h>
 #include <wolfssl/openssl/ssl.h>
+#include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/ecc.h>
 
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "hiredis/alloc.h"
 #include "hiredis/async.h"
-#include "hiredis/hiredis.h"
-#include "hiredis/net.h"
 #include "hiredis/async_private.h"
+#include "hiredis/hiredis.h"
 #include "hiredis/hiredis_ssl.h"
+#include "hiredis/net.h"
 
 void __redisSetError(redisContext *c, int type, const char *str);
 
@@ -96,18 +97,10 @@ redisContextFuncs redisContextSSLFuncs;
 
 #ifdef HIREDIS_USE_CRYPTO_LOCKS
 typedef pthread_mutex_t sslLockType;
-static void sslLockInit(sslLockType *l) {
-  pthread_mutex_init(l, nullptr);
-}
-static void sslLockDestroy(sslLockType *l) {
-  pthread_mutex_destroy(l);
-}
-static void sslLockAcquire(sslLockType *l) {
-  pthread_mutex_lock(l);
-}
-static void sslLockRelease(sslLockType *l) {
-  pthread_mutex_unlock(l);
-}
+static void sslLockInit(sslLockType *l) { pthread_mutex_init(l, nullptr); }
+static void sslLockDestroy(sslLockType *l) { pthread_mutex_destroy(l); }
+static void sslLockAcquire(sslLockType *l) { pthread_mutex_lock(l); }
+static void sslLockRelease(sslLockType *l) { pthread_mutex_unlock(l); }
 
 static sslLockType *ossl_locks;
 static unsigned ossl_lock_count;
@@ -135,6 +128,9 @@ static void freeOpensslLocks() {
 
 static void opensslDoLock(int mode, int lkid, [[maybe_unused]] const char *f,
                           [[maybe_unused]] int line) {
+  if (ossl_locks == nullptr || lkid < 0 || (unsigned)lkid >= ossl_lock_count)
+    return;
+
   sslLockType *l = ossl_locks + lkid;
 
   if (mode & CRYPTO_LOCK) {
@@ -154,6 +150,9 @@ static int initOpensslLocks() {
     return REDIS_OK;
   }
   nlocks = CRYPTO_num_locks();
+  if (nlocks > (SIZE_MAX / sizeof(*ossl_locks)))
+    return REDIS_ERR;
+
   ossl_locks = hi_malloc(sizeof(*ossl_locks) * nlocks);
   if (ossl_locks == nullptr)
     return REDIS_ERR;
@@ -232,9 +231,12 @@ void redisFreeSSLContext(redisSSLContext *ctx) {
  * redisSSLContext helper context initialization.
  */
 
-redisSSLContext *redisCreateSSLContext(const char *cacert_filename, const char *capath,
-                                       const char *cert_filename, const char *private_key_filename,
-                                       const char *server_name, redisSSLContextError *error) {
+redisSSLContext *redisCreateSSLContext(const char *cacert_filename,
+                                       const char *capath,
+                                       const char *cert_filename,
+                                       const char *private_key_filename,
+                                       const char *server_name,
+                                       redisSSLContextError *error) {
   redisSSLOptions options = {
       .cacert_filename = cacert_filename,
       .capath = capath,
@@ -247,8 +249,9 @@ redisSSLContext *redisCreateSSLContext(const char *cacert_filename, const char *
   return redisCreateSSLContextWithOptions(&options, error);
 }
 
-redisSSLContext *redisCreateSSLContextWithOptions(const redisSSLOptions *options,
-                                                  redisSSLContextError *error) {
+redisSSLContext *
+redisCreateSSLContextWithOptions(const redisSSLOptions *options,
+                                 redisSSLContextError *error) {
   if (options == nullptr) {
     if (error)
       *error = REDIS_SSL_CTX_CREATE_FAILED;
@@ -285,8 +288,8 @@ redisSSLContext *redisCreateSSLContextWithOptions(const redisSSLOptions *options
 #if defined(OPENSSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x1010'0000L
   SSL_CTX_set_min_proto_version(ctx->ssl_ctx, TLS1_2_VERSION);
 #else
-  SSL_CTX_set_options(ctx->ssl_ctx,
-                      SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+  SSL_CTX_set_options(ctx->ssl_ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
+                                        SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
 #endif
 
   SSL_CTX_set_verify(ctx->ssl_ctx, options->verify_mode, nullptr);
@@ -318,7 +321,8 @@ redisSSLContext *redisCreateSSLContextWithOptions(const redisSSLOptions *options
         *error = REDIS_SSL_CTX_CLIENT_CERT_LOAD_FAILED;
       goto error;
     }
-    if (!SSL_CTX_use_PrivateKey_file(ctx->ssl_ctx, private_key_filename, SSL_FILETYPE_PEM)) {
+    if (!SSL_CTX_use_PrivateKey_file(ctx->ssl_ctx, private_key_filename,
+                                     SSL_FILETYPE_PEM)) {
       if (error)
         *error = REDIS_SSL_CTX_PRIVATE_KEY_LOAD_FAILED;
       goto error;
@@ -389,7 +393,8 @@ static int redisSSLConnect(redisContext *c, SSL *ssl) {
       snprintf(err, sizeof(err) - 1, "SSL_connect failed: %s", strerror(errno));
     else {
       auto e = ERR_peek_last_error();
-      snprintf(err, sizeof(err) - 1, "SSL_connect failed: %s", ERR_reason_error_string(e));
+      snprintf(err, sizeof(err) - 1, "SSL_connect failed: %s",
+               ERR_reason_error_string(e));
     }
     __redisSetError(c, REDIS_ERR_IO, err);
   }
@@ -412,7 +417,8 @@ int redisInitiateSSL(redisContext *c, SSL *ssl) {
  * don't manage their own SSL objects.
  */
 
-int redisInitiateSSLWithContext(redisContext *c, redisSSLContext *redis_ssl_ctx) {
+int redisInitiateSSLWithContext(redisContext *c,
+                                redisSSLContext *redis_ssl_ctx) {
   if (!c || !redis_ssl_ctx)
     return REDIS_ERR;
 
@@ -481,8 +487,12 @@ static void redisSSLFree(void *privctx) {
 
 static ssize_t redisSSLRead(redisContext *c, char *buf, size_t bufcap) {
   redisSSL *rssl = c->privctx;
+  if (bufcap == 0)
+    return 0;
+  if (bufcap > (size_t)INT_MAX)
+    bufcap = (size_t)INT_MAX;
 
-  auto nread = SSL_read(rssl->ssl, buf, bufcap);
+  auto nread = SSL_read(rssl->ssl, buf, (int)bufcap);
   if (nread > 0) {
     return nread;
   } else if (nread == 0) {
@@ -523,14 +533,18 @@ static ssize_t redisSSLRead(redisContext *c, char *buf, size_t bufcap) {
 
 static ssize_t redisSSLWrite(redisContext *c) {
   redisSSL *rssl = c->privctx;
+  size_t write_len = rssl->lastLen ? rssl->lastLen : sdslen(c->obuf);
+  if (write_len == 0)
+    return 0;
+  if (write_len > (size_t)INT_MAX)
+    write_len = (size_t)INT_MAX;
 
-  size_t len = rssl->lastLen ? rssl->lastLen : sdslen(c->obuf);
-  auto rv = SSL_write(rssl->ssl, c->obuf, len);
+  auto rv = SSL_write(rssl->ssl, c->obuf, (int)write_len);
 
   if (rv > 0) {
     rssl->lastLen = 0;
   } else if (rv < 0) {
-    rssl->lastLen = len;
+    rssl->lastLen = write_len;
 
     int err = SSL_get_error(rssl->ssl, rv);
     if ((c->flags & REDIS_BLOCK) == 0 && maybeCheckWant(rssl, err)) {

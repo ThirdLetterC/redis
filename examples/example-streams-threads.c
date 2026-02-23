@@ -58,8 +58,9 @@ static int publisher_thread(void *arg) {
     char payload[payload_size];
     snprintf(payload, sizeof(payload), "message-%zu", i);
 
-    redisReply *reply = redisCommand(context, "XADD %s * producer %s payload %s", cfg->stream,
-                                     "publisher", payload);
+    redisReply *reply =
+        redisCommand(context, "XADD %s * producer %s payload %s", cfg->stream,
+                     "publisher", payload);
     if (reply == nullptr || context->err) {
       const char *err = context->err ? context->errstr : "unknown error";
       fprintf(stderr, "XADD error: %s\n", err);
@@ -94,7 +95,8 @@ static int subscriber_thread(void *arg) {
   size_t received = 0;
   while (received < cfg->count) {
     redisReply *reply =
-        redisCommand(context, "XREAD BLOCK 5000 COUNT 1 STREAMS %s %s", cfg->stream, last_id);
+        redisCommand(context, "XREAD BLOCK 5000 COUNT 1 STREAMS %s %s",
+                     cfg->stream, last_id);
     if (reply == nullptr || context->err) {
       const char *err = context->err ? context->errstr : "unknown error";
       fprintf(stderr, "XREAD error: %s\n", err);
@@ -125,13 +127,15 @@ static int subscriber_thread(void *arg) {
     }
 
     auto entries = stream_reply->element[1];
-    if (entries == nullptr || entries->type != REDIS_REPLY_ARRAY || entries->elements == 0) {
+    if (entries == nullptr || entries->type != REDIS_REPLY_ARRAY ||
+        entries->elements == 0) {
       freeReplyObject(reply);
       continue;
     }
 
     auto entry = entries->element[0];
-    if (entry == nullptr || entry->type != REDIS_REPLY_ARRAY || entry->elements < 2) {
+    if (entry == nullptr || entry->type != REDIS_REPLY_ARRAY ||
+        entry->elements < 2) {
       fprintf(stderr, "XREAD malformed entry\n");
       freeReplyObject(reply);
       redisFree(context);

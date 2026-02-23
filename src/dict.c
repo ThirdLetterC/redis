@@ -36,8 +36,8 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "hiredis/dict.h"
 #include "hiredis/alloc.h"
+#include "hiredis/dict.h"
 
 /* -------------------------- private prototypes ---------------------------- */
 
@@ -50,7 +50,8 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* Generic hash function (a popular one from Bernstein).
  * I tested a few and this was the best. */
-[[maybe_unused]] static unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
+[[maybe_unused]] static unsigned int
+dictGenHashFunction(const unsigned char *buf, int len) {
   unsigned int hash = 5'381;
 
   while (len--)
@@ -304,8 +305,11 @@ static int _dictExpandIfNeeded(dict *ht) {
    * if the table is "full" double its size. */
   if (ht->size == 0)
     return dictExpand(ht, DICT_HT_INITIAL_SIZE);
-  if (ht->used == ht->size)
+  if (ht->used == ht->size) {
+    if (ht->size > (ULONG_MAX / 2))
+      return DICT_ERR;
     return dictExpand(ht, ht->size * 2);
+  }
   return DICT_OK;
 }
 
@@ -318,6 +322,8 @@ static unsigned long _dictNextPower(unsigned long size) {
   while (1) {
     if (i >= size)
       return i;
+    if (i > (ULONG_MAX / 2))
+      return ULONG_MAX;
     i *= 2;
   }
 }

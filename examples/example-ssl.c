@@ -6,7 +6,8 @@
 #include "hiredis/hiredis.h"
 #include "hiredis/hiredis_ssl.h"
 
-[[nodiscard]] static redisReply *runCommand(redisContext *c, const char *format, ...) {
+[[nodiscard]] static redisReply *runCommand(redisContext *c, const char *format,
+                                            ...) {
   va_list ap;
   va_start(ap, format);
   auto reply = (redisReply *)redisvCommand(c, format, ap);
@@ -44,7 +45,8 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  constexpr struct timeval timeout = {.tv_sec = 1, .tv_usec = 500'000}; // 1.5 seconds
+  constexpr struct timeval timeout = {.tv_sec = 1,
+                                      .tv_usec = 500'000}; // 1.5 seconds
   redisOptions options = {0};
   REDIS_OPTIONS_SET_TCP(&options, hostname, port);
   options.connect_timeout = &timeout;

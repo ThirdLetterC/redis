@@ -57,9 +57,12 @@ int main(int argc, char **argv) {
   redisAsyncSetDisconnectCallback(c, disconnectCallback);
   const char *value = (argc > 1) ? argv[1] : "poll-example-value";
   auto value_len = strlen(value);
-  if (redisAsyncCommand(c, nullptr, nullptr, "SET key %b", value, value_len) != REDIS_OK ||
-      redisAsyncCommand(c, getCallback, (char *)"end-1", "GET key") != REDIS_OK) {
-    printf("Error: %s\n", c->errstr ? c->errstr : "failed to queue async command");
+  if (redisAsyncCommand(c, nullptr, nullptr, "SET key %b", value, value_len) !=
+          REDIS_OK ||
+      redisAsyncCommand(c, getCallback, (char *)"end-1", "GET key") !=
+          REDIS_OK) {
+    printf("Error: %s\n",
+           c->errstr ? c->errstr : "failed to queue async command");
     redisAsyncDisconnect(c);
   }
   constexpr double tick_seconds = 0.1;

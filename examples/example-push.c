@@ -36,8 +36,9 @@
 
 static constexpr unsigned int KEY_COUNT = 5;
 
-[[noreturn]] static void panicAbortImpl(const char *file, int line, const char *func,
-                                        const char *fmt, ...) {
+[[noreturn]] static void panicAbortImpl(const char *file, int line,
+                                        const char *func, const char *fmt,
+                                        ...) {
   va_list args;
   fprintf(stderr, "%s:%d:%s(): ", file, line, func);
   va_start(args, fmt);
@@ -47,9 +48,11 @@ static constexpr unsigned int KEY_COUNT = 5;
   exit(EXIT_FAILURE);
 }
 
-#define panicAbort(fmt, ...) panicAbortImpl(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
+#define panicAbort(fmt, ...)                                                   \
+  panicAbortImpl(__FILE__, __LINE__, __func__, fmt, __VA_ARGS__)
 
-static void assertReplyAndFree(redisContext *context, redisReply *reply, int type) {
+static void assertReplyAndFree(redisContext *context, redisReply *reply,
+                               int type) {
   if (reply == nullptr)
     panicAbort("NULL reply from server (error: %s)", context->errstr);
 
@@ -108,7 +111,8 @@ void pushReplyHandler(void *privdata, void *r) {
  * can have hiredis call our data destructor when freeing the context */
 void privdata_dtor(void *privdata) {
   unsigned int *icount = privdata;
-  printf("privdata_dtor():  In context privdata dtor (invalidations: %u)\n", *icount);
+  printf("privdata_dtor():  In context privdata dtor (invalidations: %u)\n",
+         *icount);
 }
 
 int main(int argc, char **argv) {
@@ -161,7 +165,8 @@ int main(int argc, char **argv) {
     printf("            main(): SET REPLY OK\n");
   }
 
-  printf("\nTotal detected invalidations: %u, expected: %u\n", invalidations, KEY_COUNT);
+  printf("\nTotal detected invalidations: %u, expected: %u\n", invalidations,
+         KEY_COUNT);
 
   /* PING server */
   redisFree(c);
